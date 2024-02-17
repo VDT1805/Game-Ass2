@@ -24,7 +24,9 @@ enum class CollisionType
 	None,
 	Top,
 	Middle,
-	Bottom
+	Bottom,
+	Left,
+	Right
 };
 
 struct Contact
@@ -116,6 +118,30 @@ public:
 		}
 	}
 
+	void CollideWithWall(Contact const& contact)
+	{
+		if ((contact.type == CollisionType::Top)
+		    || (contact.type == CollisionType::Bottom))
+		{
+			position.y += contact.penetration;
+			velocity.y = -velocity.y;
+		}
+		else if (contact.type == CollisionType::Left)
+		{
+			position.x = WIDTH / 2.0f;
+			position.y = HEIGHT / 2.0f;
+			velocity.x = BALL_SPEED;
+			velocity.y = 0.75f * BALL_SPEED;
+		}
+		else if (contact.type == CollisionType::Right)
+		{
+			position.x = WIDTH / 2.0f;
+			position.y = HEIGHT / 2.0f;
+			velocity.x = -BALL_SPEED;
+			velocity.y = 0.75f * BALL_SPEED;
+		}
+	}
+
 	
 };
 
@@ -186,6 +212,20 @@ public:
 	void Draw()
 	{
 		SDL_RenderCopy(renderer, texture, nullptr, &rect);
+	}
+
+	void SetScore(int score)
+	{
+		SDL_FreeSurface(surface);
+		SDL_DestroyTexture(texture);
+
+		surface = TTF_RenderText_Solid(font, std::to_string(score).c_str(), {0xFF, 0xFF, 0xFF, 0xFF});
+		texture = SDL_CreateTextureFromSurface(renderer, surface);
+
+		int width, height;
+		SDL_QueryTexture(texture, nullptr, nullptr, &width, &height);
+		rect.w = width;
+		rect.h = height;
 	}
 
 	SDL_Renderer* renderer;
@@ -263,6 +303,40 @@ Contact  CheckPaddleCollision(Ball const& ball, Paddle const& paddle)
 	return contact;
 }
 
+
+Contact CheckWallCollision(Ball const& ball)
+{
+	float ballLeft = ball.position.x;
+	float ballRight = ball.position.x + BALL_WIDTH;
+	float ballTop = ball.position.y;
+	float ballBottom = ball.position.y + BALL_HEIGHT;
+
+	Contact contact{};
+
+	if (ballLeft < 0.0f)
+	{
+		contact.type = CollisionType::Left;
+	}
+	else if (ballRight > WIDTH)
+	{
+		contact.type = CollisionType::Right;
+	}
+	else if (ballTop < 0.0f)
+	{
+		contact.type = CollisionType::Top;
+		contact.penetration = -ballTop;
+	}
+	else if (ballBottom > HEIGHT)
+	{
+		contact.type = CollisionType::Bottom;
+		contact.penetration = HEIGHT - ballBottom;
+	}
+
+	return contact;
+}
+
+
+
 //Main
 int main(int argc, char* argv[]) {
     //Init
@@ -288,17 +362,27 @@ int main(int argc, char* argv[]) {
     PlayerScore playerTwoScoreText(Vec2(3 * WIDTH / 4, 50), renderer, scoreFont);
 
 	// Create the paddles
-    Paddle paddleOne(
+    Paddle paddleOneA(
             Vec2(80.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f)),
             Vec2(0.0f, 0.0f));
-
-    Paddle paddleTwo(
-            Vec2(WIDTH - 80.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f)),
+	Paddle paddleOneB(
+            Vec2(160.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f)),
             Vec2(0.0f, 0.0f));
 
-    SDL_Surface * image = IMG_Load("./assets/football-pitch (1).png");
+    Paddle paddleTwoA(
+            Vec2(WIDTH - 80.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f)),
+            Vec2(0.0f, 0.0f));
+	Paddle paddleTwoB(
+            Vec2(WIDTH - 160.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f)),
+            Vec2(0.0f, 0.0f));
+			
+	Paddle* currentOne = &paddleOneA; 
+	Paddle* currentTwo = &paddleTwoA;
+    SDL_Surface * image = IMG_Load("./assets/football-pitch.png");
     SDL_Texture * texture = SDL_CreateTextureFromSurface(renderer, image); 
 
+		int playerOneScore = 0;
+		int playerTwoScore = 0;
 		bool running = true;
 		bool buttons[4] = {};
 
@@ -337,6 +421,22 @@ int main(int argc, char* argv[]) {
 					{
 						buttons[Buttons::PaddleTwoDown] = true;
 					}
+					else if(event.key.keysym.sym == SDLK_LSHIFT) {
+						std::cout<<event.key.keysym.sym;
+						if (currentOne == &paddleOneA) {
+							currentOne = &paddleOneB;
+						} else {
+							currentOne = &paddleOneA;
+						}
+					}
+					else if(event.key.keysym.sym == SDLK_RSHIFT) {
+						std::cout<<event.key.keysym.sym;
+						if (currentTwo == &paddleTwoA) {
+							currentTwo = &paddleTwoB;
+						} else {
+							currentTwo = &paddleTwoA;
+						}
+					}
 				}
 				else if (event.type == SDL_KEYUP)
 				{
@@ -356,53 +456,82 @@ int main(int argc, char* argv[]) {
 					{
 						buttons[Buttons::PaddleTwoDown] = false;
 					}
+					
 				}
+				
 			}
 
 
 			if (buttons[Buttons::PaddleOneUp])
 			{
-				paddleOne.velocity.y = -PADDLE_SPEED;
+				currentOne->velocity.y = -PADDLE_SPEED;
 			}
 			else if (buttons[Buttons::PaddleOneDown])
 			{
-				paddleOne.velocity.y = PADDLE_SPEED;
+				currentOne->velocity.y = PADDLE_SPEED;
 			}
 			else
 			{
-				paddleOne.velocity.y = 0.0f;
+				currentOne->velocity.y = 0.0f;
 			}
 
 			if (buttons[Buttons::PaddleTwoUp])
 			{
-				paddleTwo.velocity.y = -PADDLE_SPEED;
+				currentTwo->velocity.y = -PADDLE_SPEED;
 			}
 			else if (buttons[Buttons::PaddleTwoDown])
 			{
-				paddleTwo.velocity.y = PADDLE_SPEED;
+				currentTwo->velocity.y = PADDLE_SPEED;
 			}
 			else
 			{
-				paddleTwo.velocity.y = 0.0f;
+				currentTwo->velocity.y = 0.0f;
 			}
 
 		// Update the paddle positions
-		paddleOne.Update(dt);
-		paddleTwo.Update(dt);
+		paddleOneA.Update(dt);
+		paddleOneB.Update(dt);
+		paddleTwoA.Update(dt);
+		paddleTwoB.Update(dt);
 
 		// Update the ball position
 		ball.Update(dt);
 
 		// Check collisions
-		if (Contact contact = CheckPaddleCollision(ball, paddleOne);
+		if (Contact contact = CheckPaddleCollision(ball, paddleOneA);
 			contact.type != CollisionType::None)
 		{
 			ball.CollideWithPaddle(contact);
 		}
-		else if (contact = CheckPaddleCollision(ball, paddleTwo);
+		else if (Contact contact = CheckPaddleCollision(ball, paddleOneB);
 			contact.type != CollisionType::None)
 		{
 			ball.CollideWithPaddle(contact);
+		}
+		else if (contact = CheckPaddleCollision(ball, paddleTwoA);
+			contact.type != CollisionType::None)
+		{
+			ball.CollideWithPaddle(contact);
+		}
+		else if (contact = CheckPaddleCollision(ball, paddleTwoB);
+			contact.type != CollisionType::None)
+		{
+			ball.CollideWithPaddle(contact);
+		}
+		else if (contact = CheckWallCollision(ball);
+			contact.type != CollisionType::None)
+		{
+			ball.CollideWithWall(contact);
+			if (contact.type == CollisionType::Left)
+			{
+				++playerTwoScore;
+				playerTwoScoreText.SetScore(playerTwoScore);
+			}
+			else if (contact.type == CollisionType::Right)
+			{
+				++playerOneScore;
+				playerOneScoreText.SetScore(playerOneScore);
+			}
 		}
 
         // Clear the window to black
@@ -419,8 +548,10 @@ int main(int argc, char* argv[]) {
         ball.Draw(renderer);
 
         // Draw the paddles
-        paddleOne.Draw(renderer);
-        paddleTwo.Draw(renderer);
+        paddleOneA.Draw(renderer);
+		paddleOneB.Draw(renderer);
+        paddleTwoA.Draw(renderer);
+        paddleTwoB.Draw(renderer);
 
         // Display the scores
         playerOneScoreText.Draw();
