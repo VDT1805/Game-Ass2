@@ -3,15 +3,16 @@
         {
             "name": "Win32",
             "includePath": [
-                "D:\\msys64\\mingw64\\include",
-                "${workspaceFolder}/SDL2-Lib/include"
+                // "${workspaceFolder}/**",
+                // "${workspaceFolder}/SDL2-Lib/include",
+                "C:\\msys64\\mingw64\\include"
             ],
             "defines": [
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE"
             ],
-            "compilerPath": "D:/msys64/ucrt64/bin/gcc.exe"
+            "compilerPath": "C:/msys64/ucrt64/bin/gcc.exe"
         }
     ],
     "version": 4
