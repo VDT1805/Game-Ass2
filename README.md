@@ -1,3 +1,5 @@
+# BTL 2 - Lập trình Game
+
 Hướng dẫn cài MingW cho VSCode: https://code.visualstudio.com/docs/cpp/config-mingw
 
 Cài SDL2: https://github.com/libsdl-org/SDL/releases/tag/release-2.30.0 -> SDL2-devel-2.30.0-mingw.zip
