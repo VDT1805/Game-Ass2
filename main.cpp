@@ -7,9 +7,9 @@
 
 const int WIDTH = 1080, HEIGHT = 720;
 const int BALL_WIDTH = 45, BALL_HEIGHT = 45;
-const int PADDLE_WIDTH = 10, PADDLE_HEIGHT = 50;
+const int PADDLE_WIDTH = 35, PADDLE_HEIGHT = 45;
 const float PADDLE_SPEED = 1.0f;
-const float BALL_SPEED = 1.0f;
+const float BALL_SPEED = 0.6f;
 
 enum Buttons
 {
@@ -143,19 +143,28 @@ public:
 class Paddle
 {
 public:
-	Paddle(Vec2 position, Vec2 v)
+	Paddle(Vec2 position, Vec2 v, SDL_Renderer *renderer, std::string path)
 		: position(position), velocity(v)
 	{
 		rect.x = static_cast<int>(position.x);
 		rect.y = static_cast<int>(position.y);
 		rect.w = PADDLE_WIDTH;
 		rect.h = PADDLE_HEIGHT;
+		const char * imgpath = path.c_str();
+		SDL_Surface *imageSurface = IMG_Load(imgpath); // Replace "image.png" with the path to your PNG image
+		if (imageSurface == nullptr)
+		{
+			// Handle error loading image
+		}
+
+		texture = SDL_CreateTextureFromSurface(renderer, imageSurface);
+		SDL_FreeSurface(imageSurface);
 	}
 
 	void Draw(SDL_Renderer *renderer)
 	{
 		rect.y = static_cast<int>(position.y);
-		SDL_RenderFillRect(renderer, &rect);
+		SDL_RenderCopy(renderer, texture, nullptr, &rect);
 	}
 
 	void Update(float dt)
@@ -177,6 +186,7 @@ public:
 	Vec2 position;
 	Vec2 velocity;
 	SDL_Rect rect{};
+	SDL_Texture *texture;
 };
 
 class PlayerScore
@@ -354,17 +364,21 @@ int main(int argc, char *argv[])
 	// Create the paddles
 	Paddle paddleOneA(
 		Vec2(80.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f)),
-		Vec2(0.0f, 0.0f));
+		Vec2(0.0f, 0.0f),
+		renderer,"./assets/blue/image_part_004.png");
 	Paddle paddleOneB(
 		Vec2(160.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f)),
-		Vec2(0.0f, 0.0f));
+		Vec2(0.0f, 0.0f),
+		renderer,"./assets/blue/image_part_004.png");
 
 	Paddle paddleTwoA(
 		Vec2(WIDTH - 80.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f)),
-		Vec2(0.0f, 0.0f));
+		Vec2(0.0f, 0.0f),
+		renderer,"./assets/red/image.png");
 	Paddle paddleTwoB(
 		Vec2(WIDTH - 160.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f)),
-		Vec2(0.0f, 0.0f));
+		Vec2(0.0f, 0.0f),
+		renderer,"./assets/red/image.png");
 
 	Paddle *currentOne = &paddleOneA;
 	Paddle *currentTwo = &paddleTwoA;
