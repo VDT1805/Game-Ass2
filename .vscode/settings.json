@@ -56,6 +56,10 @@
         "iomanip": "cpp",
         "span": "cpp",
         "sstream": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "cstring": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "expected": "cpp"
     }
 }

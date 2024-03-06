@@ -4,7 +4,15 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
+#include <sstream>
 
+// template< typename T >
+// std::string ToString( const T& var )
+// {
+//     std::ostringstream oss;
+//     oss << var;
+//     return var.str();
+// }
 const int WIDTH = 1080, HEIGHT = 720;
 const int BALL_WIDTH = 45, BALL_HEIGHT = 45;
 const int PADDLE_WIDTH = 35, PADDLE_HEIGHT = 45;
@@ -189,13 +197,13 @@ public:
 	SDL_Texture *texture;
 };
 
-class PlayerScore
+class TextClass
 {
 public:
-	PlayerScore(Vec2 position, SDL_Renderer *renderer, TTF_Font *font)
+	TextClass(Vec2 position, SDL_Renderer *renderer, TTF_Font *font, std::string initVal = "0")
 		: renderer(renderer), font(font)
 	{
-		surface = TTF_RenderText_Solid(font, "0", {0xFF, 0xFF, 0xFF, 0xFF});
+		surface = TTF_RenderText_Solid(font, initVal.c_str(), {0xFF, 0xFF, 0xFF, 0xFF});
 		texture = SDL_CreateTextureFromSurface(renderer, surface);
 
 		int width, height;
@@ -207,7 +215,7 @@ public:
 		rect.h = height;
 	}
 
-	~PlayerScore()
+	~TextClass()
 	{
 		SDL_FreeSurface(surface);
 		SDL_DestroyTexture(texture);
@@ -218,12 +226,12 @@ public:
 		SDL_RenderCopy(renderer, texture, nullptr, &rect);
 	}
 
-	void SetScore(int score)
+	void SetText(std::string text)
 	{
 		SDL_FreeSurface(surface);
 		SDL_DestroyTexture(texture);
 
-		surface = TTF_RenderText_Solid(font, std::to_string(score).c_str(), {0xFF, 0xFF, 0xFF, 0xFF});
+		surface = TTF_RenderText_Solid(font, text.c_str(), {0xFF, 0xFF, 0xFF, 0xFF});
 		texture = SDL_CreateTextureFromSurface(renderer, surface);
 
 		int width, height;
@@ -238,6 +246,7 @@ public:
 	SDL_Texture *texture{};
 	SDL_Rect rect{};
 };
+
 
 // Helper Function
 Contact CheckPaddleCollision(Ball const &ball, Paddle const &paddle)
@@ -335,11 +344,13 @@ Contact CheckWallCollision(Ball const &ball)
 	return contact;
 }
 
+
+
 // Main
 int main(int argc, char *argv[])
 {
 	// Init
-	SDL_Init(SDL_INIT_EVERYTHING);
+	SDL_Init(SDL_INIT_EVERYTHING|SDL_INIT_TIMER);
 	TTF_Init(); // Score
 	SDL_Window *window = SDL_CreateWindow("Tiny Ball", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 										  WIDTH, HEIGHT, SDL_WINDOW_ALLOW_HIGHDPI);
@@ -358,8 +369,8 @@ int main(int argc, char *argv[])
 			 (HEIGHT / 2.0f) - (BALL_WIDTH / 2.0f)),
 		Vec2(BALL_SPEED, 0.0f), renderer);
 
-	PlayerScore playerOneScoreText(Vec2(WIDTH / 4, 50), renderer, scoreFont);
-	PlayerScore playerTwoScoreText(Vec2(3 * WIDTH / 4, 50), renderer, scoreFont);
+	TextClass playerOneScoreText(Vec2(WIDTH / 4, 50), renderer, scoreFont);
+	TextClass playerTwoScoreText(Vec2(3 * WIDTH / 4, 50), renderer, scoreFont);
 
 	// Create the paddles
 	Paddle paddleOneA(
@@ -392,9 +403,15 @@ int main(int argc, char *argv[])
 
 	float dt = 0.0f;
 
+	bool resetGame = false;
+	float totalTime = 0.0f;
+
+	TextClass timer(Vec2(WIDTH / 4 + 55, HEIGHT * 8 / 10), renderer, scoreFont, "Time: " + std::to_string(totalTime) + "s / 90s");
+	
 	while (running)
 	{
 		auto startTime = std::chrono::high_resolution_clock::now();
+		// Check for reset button press
 
 		SDL_Event event;
 		while (SDL_PollEvent(&event))
@@ -449,6 +466,26 @@ int main(int argc, char *argv[])
 						currentTwo = &paddleTwoA;
 					}
 				}
+				else if (event.key.keysym.sym == SDLK_r)
+				{
+					resetGame = false;
+					totalTime = 0.0f;
+					paddleOneA.position = Vec2(80.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f));
+					paddleOneB.position = Vec2(160.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f));
+					paddleTwoA.position = Vec2(WIDTH - 80.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f));
+					paddleTwoB.position = Vec2(WIDTH - 160.0f, (HEIGHT / 2.0f) - (PADDLE_HEIGHT / 2.0f));
+					Paddle *currentOne = &paddleOneA;
+					Paddle *currentTwo = &paddleTwoA;
+					playerOneScore = 0;
+					playerTwoScore = 0;
+					playerOneScoreText.SetText("0");
+					playerTwoScoreText.SetText("0");
+					playerOneScoreText.Draw();
+					playerTwoScoreText.Draw();
+					ball.position = Vec2((WIDTH / 2.0f) - (BALL_WIDTH / 2.0f),(HEIGHT / 2.0f) - (BALL_WIDTH / 2.0f));
+					SDL_RenderCopy(renderer, texture, NULL, NULL);
+					SDL_RenderPresent(renderer);
+				}
 			}
 			else if (event.type == SDL_KEYUP)
 			{
@@ -497,80 +534,109 @@ int main(int argc, char *argv[])
 			currentTwo->velocity.y = 0.0f;
 		}
 
-		// Update the paddle positions
-		paddleOneA.Update(dt);
-		paddleOneB.Update(dt);
-		paddleTwoA.Update(dt);
-		paddleTwoB.Update(dt);
-
-		// Update the ball position
-		ball.Update(dt);
-
-		// Check collisions
-		if (Contact contact = CheckPaddleCollision(ball, paddleOneA);
-			contact.type != CollisionType::None)
+		if (resetGame)
 		{
-			ball.CollideWithPaddle(contact);
+			// Reset game variables here
+			// For example, reset paddle positions, ball position, scores, etc.
+			// Clear the window to black
+			SDL_SetRenderDrawColor(renderer, 0x0, 0x0, 0x0, 0xFF);
+			SDL_RenderClear(renderer);
+			TextClass resultteam (Vec2(WIDTH / 3 + 50 , HEIGHT/ 2 - 100), renderer, scoreFont);
+			resultteam.SetText("Blue - Red");
+			resultteam.Draw();
+			std::string restext = std::to_string(playerOneScore) + " - " + std::to_string(playerTwoScore);
+			TextClass result1 (Vec2(WIDTH / 2 - 70, HEIGHT/ 2), renderer, scoreFont);
+			result1.SetText(restext);
+			result1.Draw();
+			TextClass reminder (Vec2(WIDTH / 4, HEIGHT * 9/ 10), renderer, scoreFont);
+			reminder.SetText("Press R to play again");
+			reminder.Draw();
+			SDL_RenderPresent(renderer);
 		}
-		else if (Contact contact = CheckPaddleCollision(ball, paddleOneB);
-				 contact.type != CollisionType::None)
-		{
-			ball.CollideWithPaddle(contact);
-		}
-		else if (contact = CheckPaddleCollision(ball, paddleTwoA);
-				 contact.type != CollisionType::None)
-		{
-			ball.CollideWithPaddle(contact);
-		}
-		else if (contact = CheckPaddleCollision(ball, paddleTwoB);
-				 contact.type != CollisionType::None)
-		{
-			ball.CollideWithPaddle(contact);
-		}
-		else if (contact = CheckWallCollision(ball);
-				 contact.type != CollisionType::None)
-		{
-			ball.CollideWithWall(contact);
-			if (contact.type == CollisionType::Left)
-			{
-				++playerTwoScore;
-				playerTwoScoreText.SetScore(playerTwoScore);
-			}
-			else if (contact.type == CollisionType::Right)
-			{
-				++playerOneScore;
-				playerOneScoreText.SetScore(playerOneScore);
-			}
+		else {
+				// Update the paddle positions
+				paddleOneA.Update(dt);
+				paddleOneB.Update(dt);
+				paddleTwoA.Update(dt);
+				paddleTwoB.Update(dt);
+
+				// Update the ball position
+				ball.Update(dt);
+
+				// Check collisions
+				if (Contact contact = CheckPaddleCollision(ball, paddleOneA);
+					contact.type != CollisionType::None)
+				{
+					ball.CollideWithPaddle(contact);
+				}
+				else if (Contact contact = CheckPaddleCollision(ball, paddleOneB);
+						contact.type != CollisionType::None)
+				{
+					ball.CollideWithPaddle(contact);
+				}
+				else if (contact = CheckPaddleCollision(ball, paddleTwoA);
+						contact.type != CollisionType::None)
+				{
+					ball.CollideWithPaddle(contact);
+				}
+				else if (contact = CheckPaddleCollision(ball, paddleTwoB);
+						contact.type != CollisionType::None)
+				{
+					ball.CollideWithPaddle(contact);
+				}
+				else if (contact = CheckWallCollision(ball);
+						contact.type != CollisionType::None)
+				{
+					ball.CollideWithWall(contact);
+					if (contact.type == CollisionType::Left)
+					{
+						++playerTwoScore;
+						playerTwoScoreText.SetText(std::to_string(playerTwoScore));
+					}
+					else if (contact.type == CollisionType::Right)
+					{
+						++playerOneScore;
+						playerOneScoreText.SetText(std::to_string(playerOneScore));
+					}
+				}
+
+				//
+				// Rendering will happen here
+				//
+				SDL_RenderCopy(renderer, texture, NULL, NULL);
+				// SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+
+				// Draw the ball
+				ball.Draw(renderer);
+
+				// Draw the paddles
+				paddleOneA.Draw(renderer);
+				paddleOneB.Draw(renderer);
+				paddleTwoA.Draw(renderer);
+				paddleTwoB.Draw(renderer);
+
+				// Display the scores
+				playerOneScoreText.Draw();
+				playerTwoScoreText.Draw();
+
+				timer.Draw();
+
+				// Present the backbuffer
+				SDL_RenderPresent(renderer);
+				// Check if 90 seconds have elapsed
+				if (totalTime >= 90000) // 90 seconds in milliseconds 90000
+				{
+					// Trigger game reset
+					resetGame = true;
+				}
 		}
 
-		// Clear the window to black
-		SDL_SetRenderDrawColor(renderer, 0x0, 0x0, 0x0, 0xFF);
-		SDL_RenderClear(renderer);
-		//
-		// Rendering will happen here
-		//
-		SDL_RenderCopy(renderer, texture, NULL, NULL);
-		// SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-
-		// Draw the ball
-		ball.Draw(renderer);
-
-		// Draw the paddles
-		paddleOneA.Draw(renderer);
-		paddleOneB.Draw(renderer);
-		paddleTwoA.Draw(renderer);
-		paddleTwoB.Draw(renderer);
-
-		// Display the scores
-		playerOneScoreText.Draw();
-		playerTwoScoreText.Draw();
-
-		// Present the backbuffer
-		SDL_RenderPresent(renderer);
 
 		// Calculate frame time
 		auto stopTime = std::chrono::high_resolution_clock::now();
 		dt = std::chrono::duration<float, std::chrono::milliseconds::period>(stopTime - startTime).count();
+		totalTime += dt;
+		timer.SetText("Timer: "+ std::to_string(totalTime/1000).substr(0,4) + "s / 90s");
 	}
 
 	// Cleanup
